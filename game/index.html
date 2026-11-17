@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LUMEN — Bend the Light</title>
+<style>
+  :root {
+    --gold: #ffd166;
+    --ink: #eef1ff;
+    --dim: #9aa5d1;
+    --panel: rgba(10, 14, 34, 0.88);
+    --edge: rgba(255, 209, 102, 0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1026; }
+  body { font-family: "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--ink); }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0; height: 64px; z-index: 5;
+    display: flex; align-items: center; gap: 18px; padding: 0 18px;
+    background: linear-gradient(180deg, rgba(7, 10, 26, 0.95), rgba(7, 10, 26, 0.65) 80%, transparent);
+    pointer-events: none;
+  }
+  #hud > * { pointer-events: auto; }
+  .brand { font-weight: 800; letter-spacing: 0.35em; font-size: 20px; color: var(--gold); }
+  .brand small { display: block; letter-spacing: 0.18em; font-size: 9px; color: var(--dim); font-weight: 600; }
+  .hud-stat { display: flex; flex-direction: column; line-height: 1.15; }
+  .hud-stat b { font-size: 16px; }
+  .hud-stat span { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+  .hud-spacer { flex: 1; }
+  button {
+    font: inherit; color: var(--ink); background: rgba(18, 25, 54, 0.9);
+    border: 1px solid rgba(255, 209, 102, 0.4); border-radius: 10px;
+    padding: 8px 14px; cursor: pointer;
+  }
+  button:hover { border-color: var(--gold); box-shadow: 0 0 12px rgba(255, 209, 102, 0.35); }
+  button:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
+  button.primary { background: var(--gold); color: #1a1405; font-weight: 800; border-color: var(--gold); }
+  button.primary:hover { box-shadow: 0 0 18px rgba(255, 209, 102, 0.6); }
+
+  .overlay {
+    position: fixed; inset: 0; z-index: 10; display: none;
+    align-items: center; justify-content: center; text-align: center;
+    background: rgba(7, 10, 26, 0.55); backdrop-filter: blur(3px);
+  }
+  .overlay.show { display: flex; }
+  .card {
+    background: var(--panel); border: 1px solid var(--edge); border-radius: 20px;
+    padding: 34px 44px; max-width: 620px; box-shadow: 0 0 60px rgba(0, 0, 0, 0.6);
+  }
+  .card h1 {
+    margin: 0; font-size: 64px; letter-spacing: 0.3em; color: var(--gold);
+    text-shadow: 0 0 32px rgba(255, 209, 102, 0.55);
+  }
+  .card h2 { margin: 0 0 6px; font-size: 34px; letter-spacing: 0.06em; }
+  .card p { color: var(--dim); margin: 10px 0 18px; font-size: 16px; line-height: 1.5; }
+  .card .row { display: flex; gap: 12px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
+  .stars { font-size: 44px; letter-spacing: 0.15em; color: var(--gold); text-shadow: 0 0 18px rgba(255, 209, 102, 0.7); }
+  .stars .off { color: #39406b; text-shadow: none; }
+  .score-line { display: flex; justify-content: space-between; gap: 40px; padding: 4px 0; font-size: 16px; }
+  .score-line b { color: var(--gold); }
+  .howto { text-align: left; font-size: 14px; line-height: 1.7; color: var(--dim); margin: 14px auto 0; max-width: 460px; }
+  .howto b { color: var(--ink); }
+  .level-grid { display: grid; grid-template-columns: repeat(4, 92px); gap: 12px; justify-content: center; margin-top: 18px; }
+  .level-btn { padding: 12px 0 8px; border-radius: 12px; }
+  .level-btn b { display: block; font-size: 20px; }
+  .level-btn span { font-size: 13px; color: var(--gold); letter-spacing: 0.1em; }
+  .level-btn small { display: block; font-size: 10px; color: var(--dim); margin-top: 2px; }
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="LUMEN: rotate mirrors, splitters and filters to guide beams of light into the lanterns"></canvas>
+
+<header id="hud">
+  <div class="brand">LUMEN<small>BEND THE LIGHT</small></div>
+  <div class="hud-stat"><b id="hud-level">—</b><span>Level</span></div>
+  <div class="hud-stat"><b id="hud-lanterns">0 / 0</b><span>Lanterns lit</span></div>
+  <div class="hud-stat"><b id="hud-moves">0</b><span>Moves · par 0</span></div>
+  <div class="hud-stat"><b id="hud-time">0:00</b><span>Time</span></div>
+  <div class="hud-stat"><b id="hud-score">0</b><span>Total score</span></div>
+  <div class="hud-spacer"></div>
+  <button id="btn-undo" type="button">↩ Undo</button>
+  <button id="btn-reset" type="button">⟳ Reset</button>
+  <button id="btn-sound" type="button" aria-label="Toggle sound">🔊</button>
+  <button id="btn-menu" type="button">Menu</button>
+</header>
+
+<div class="overlay show" id="ov-title">
+  <div class="card">
+    <h1>LUMEN</h1>
+    <p>Bend the light. Wake every lantern.<br>A puzzle of mirrors, splitters and coloured glass.</p>
+    <div class="row">
+      <button class="primary" id="btn-play" type="button">▶&nbsp; Play</button>
+      <button id="btn-levels" type="button">Levels</button>
+    </div>
+    <div class="howto">
+      <b>Click</b> a mirror or splitter to rotate it. <b>Beams</b> bend at mirrors,
+      split at splitters, and change colour through filters.
+      Light every lantern to finish a level — fewer moves than par earns three stars.
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ov-levels">
+  <div class="card">
+    <h2>Choose a level</h2>
+    <p>Twelve boards, from first light to the grand finale.</p>
+    <div class="level-grid" id="level-grid"></div>
+    <div class="row"><button id="btn-levels-back" type="button">Back</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="ov-complete">
+  <div class="card">
+    <h2 id="complete-title">Level complete!</h2>
+    <div class="stars" id="complete-stars">★★★</div>
+    <div id="complete-lines"></div>
+    <div class="row">
+      <button class="primary" id="btn-next" type="button">Next level →</button>
+      <button id="btn-replay" type="button">Replay</button>
+      <button id="btn-complete-menu" type="button">Menu</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ov-all">
+  <div class="card">
+    <h2>Every lantern lit ✦</h2>
+    <div class="stars">★★★</div>
+    <p>You bent the light through all twelve boards.<br>Thank you for playing LUMEN.</p>
+    <div class="score-line"><span>Total score</span><b id="all-score">0</b></div>
+    <div class="row">
+      <button class="primary" id="btn-again" type="button">Play again</button>
+      <button id="btn-all-menu" type="button">Menu</button>
+    </div>
+  </div>
+</div>
+
+<p id="status" role="status" aria-live="polite"></p>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
